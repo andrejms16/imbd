@@ -1,0 +1,23 @@
+[build-system]
+# This tells pip what tool to use to build your package
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+# The name of your package. It's best practice to make this match 
+# the folder name inside your 'src' directory.
+name = "imdb"
+version = "0.1.0"
+description = "Internal utility library for data processing"
+dependencies = [
+    "pandas>=2.0",
+    "pg8000>=1.31.0",
+    "awswrangler>=3.14.0",
+    "python-dotenv>=1.0",
+    "SQLAlchemy>=2.0.0",
+    "plotly>=5.0",
+]
+
+[tool.setuptools.packages.find]
+# This tells setuptools to look for your code inside the 'src' folder
+where = ["src"]

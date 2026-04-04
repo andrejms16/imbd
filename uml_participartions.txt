@@ -1,0 +1,106 @@
+# IMDB DATA WAREHOUSE - UML SCHEMA DEFINITION
+
+## DIMENSIONAL TABLES
+
+### dim_person
+pk: nconst (String)
+- primaryName: String
+- birthYear: Int64 (nullable)
+- deathYear: Int64 (nullable)
+- profession_group_id: String (fk -> bridge_profession_group)
+- weighting_factor_prf: Float (nullable)
+
+### dim_profession
+pk: profession_id (String, format: prf_N)
+- genre_nm: String (unique)
+
+### dim_roles
+pk: role_id (String, format: nconst_tconst_ordering)
+- nconst: String (fk -> dim_person)
+- tconst: String (fk -> dim_title_basic)
+- titleType: String (Enum: movie, tvSeries)
+- category: String (nullable)
+- job: String (nullable)
+- characters: String (nullable, JSON format)
+
+### dim_title_basic
+pk: tconst (String)
+- titleType: String (Enum: movie, tvSeries)
+- primaryTitle: String
+- originalTitle: String
+- isAdult: Boolean
+- startYear: Integer
+- endYear: Integer (nullable)
+- runtimeMinutes: Float (nullable)
+- genre_group_id: String (fk -> bridge_genres)
+
+### dim_genre
+pk: genre_id (String, format: gen_N)
+- genre_nm: String (unique)
+
+## BRIDGE TABLES (Many-to-Many Resolution)
+
+### bridge_profession_group
+sk: profession_group_id (String, format: p_grp_N) - Composite key
+- nconst: String (fk -> dim_person)
+- profession_id: String (fk -> dim_profession)
+- weighting_factor_prf: Float (1 / count of professions per person)
+
+### bridge_genres
+sk: genre_group_id (String, format: g_grp_N) - Composite key
+- tconst: String (fk -> dim_title_basic)
+- genre_id: String (fk -> dim_genre)
+- weighting_factor_gen: Float (1 / count of genres per title)
+
+### bridge_kwn_titles
+sk: kwn_title_group_id (String, format: kwn_t_grp_N) - Composite key
+- tconst: String (fk -> dim_title_basic)
+- nconst: String (fk -> dim_person)
+- weighting_factor_grp: Float (1 / count of known titles per person)
+
+## FACT TABLES
+
+### participations_pers (Denormalized Fact Table)
+pk: Composite(nconst, tconst, role_id)
+- nconst: String (fk -> dim_person)
+- primaryName: String
+- tconst: String (fk -> dim_title_basic)
+- titleType: String (Enum: movie, tvSeries)
+- primaryTitle: String
+- runtimeMinutes: Float (nullable)
+- genre_group_id: String (fk -> bridge_genres)
+- role_id (String, format: nconst_tconst_ordering)
+- category: String (nullable)
+- job: String (nullable)
+- characters: String (nullable, JSON format)
+- profession_group_id: String (fk -> bridge_profession_group)
+- kwn_title_group_id: String (fk -> bridge_kwn_titles)
+- participations_count (Integer)
+
+## RELATIONSHIPS
+
+### FK Relationships:
+1. dim_roles.nconst -> dim_person.nconst (Many-to-One)
+2. dim_roles.tconst -> dim_title_basic.tconst (Many-to-One)
+3. dim_person.profession_group_id -> bridge_profession_group.profession_group_id (Many-to-One)
+4. dim_title_basic.genre_group_id -> bridge_genres.genre_group_id (Many-to-One)
+5. bridge_profession_group.nconst -> dim_person.nconst (Many-to-One)
+6. bridge_profession_group.profession_id -> dim_profession.profession_id (Many-to-One)
+7. bridge_genres.tconst -> dim_title_basic.tconst (Many-to-One)
+8. bridge_genres.genre_id -> dim_genre.genre_id (Many-to-One)
+9. bridge_kwn_titles.tconst -> dim_title_basic.tconst (Many-to-One)
+10. bridge_kwn_titles.nconst -> dim_person.nconst (Many-to-One)
+11. participations_pers.nconst -> dim_person.nconst (Many-to-One)
+12. participations_pers.tconst -> dim_title_basic.tconst (Many-to-One)
+13. participations_pers.genre_group_id -> bridge_genres.genre_group_id (Many-to-One)
+14. participations_pers.profession_group_id -> bridge_profession_group.profession_group_id (Many-to-One)
+15. participations_pers.kwn_title_group_id -> bridge_kwn_titles.kwn_title_group_id (Many-to-One)
+
+## SCHEMA SUMMARY
+
+- Total Dimensional Tables: 4 (dim_person, dim_profession, dim_roles, dim_title_basic, dim_genre)
+- Total Bridge Tables: 3 (bridge_profession_group, bridge_genres, bridge_kwn_titles)
+- Total Fact Tables: 1 (participations_pers - denormalized for analytics)
+- Primary Keys: 8 (dim_person, dim_profession, dim_roles, dim_title_basic, dim_genre, + 3 bridge tables with composite keys)
+- Foreign Keys: 15 relationships
+- Nomenclature: pk (primary key), fk (foreign key), sk (surrogate key for bridge tables)

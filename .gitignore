@@ -1,3 +1,6 @@
 raw_model_imdb.pdf
 init_dim_model_imdb.pdf
 data/*
+.env
+*pycache*
+*egg-info
