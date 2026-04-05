@@ -378,6 +378,175 @@ class Transformer:
         fact_ratings.to_parquet(self.silver_path / 'fact_ratings.parquet', compression='snappy')
         print(f"fact_ratings saved with sk_profession. Shape: {fact_ratings.shape}")
 
+    def transform_dim_time(self):
+        """
+        Creates dim_time covering years 1900-2030.
+        Generated programmatically — no raw source file required.
+
+        Design notes:
+          - Grain: one row per calendar year
+          - tv_era groups years into qualitative television eras for analytical filtering
+          - period provides a coarser grouping for decade-level analysis
+          - No measures — pure descriptive dimension
+        """
+        print("Transforming: dim_time")
+
+        ERA_BINS   = [0,      1979,          1999,           2012,            9999]
+        ERA_LABELS = ['Classic Era', 'Cable Era', 'Quality Era', 'Streaming Era']
+
+        PERIOD_BINS   = [0,      1999,           2009,           2019,    9999]
+        PERIOD_LABELS = ['Before 2000', '2000-2009', '2010-2019', '2020+']
+
+        dim_time = pd.DataFrame({'sk_time': range(1900, 2031)})
+        dim_time['decade'] = ((dim_time['sk_time'] // 10) * 10).astype('int16')
+        dim_time['tv_era'] = pd.cut(
+            dim_time['sk_time'], bins=ERA_BINS, labels=ERA_LABELS
+        ).astype(str)
+        dim_time['period'] = pd.cut(
+            dim_time['sk_time'], bins=PERIOD_BINS, labels=PERIOD_LABELS
+        ).astype(str)
+
+        # sk_time acts as the surrogate key (the year value itself)
+        dim_time = dim_time.rename(columns={'sk_time': 'year'})
+        dim_time.insert(0, 'sk_time', range(1, len(dim_time) + 1))
+
+        dim_time.to_parquet(self.silver_path / 'dim_time.parquet', compression='snappy')
+        print(f"dim_time saved. Shape: {dim_time.shape}")
+        return dim_time
+
+    def transform_dim_season(self, dim_episode):
+        """
+        Creates dim_season from dim_episode — one row per (sk_title, sk_season).
+        Receives dim_episode as input to avoid re-reading from disk.
+
+        Design notes:
+          - Grain: one row per (series, season number) — hierarchy: Season < Series (dim_title)
+          - sk_season_id is a natural surrogate: <sk_title>_s<sk_season>
+          - NO measures here — avg_rating, votes and episode counts live in fact_series_performance
+        """
+        print("Transforming: dim_season")
+
+        dim_season = (
+            dim_episode[['sk_title', 'sk_season']]
+            .dropna(subset=['sk_season'])
+            .drop_duplicates()
+            .sort_values(['sk_title', 'sk_season'])
+            .reset_index(drop=True)
+        )
+
+        # Natural surrogate key: combines series and season for traceability
+        dim_season['sk_season_id'] = (
+            dim_season['sk_title'] + '_s' + dim_season['sk_season'].astype(int).astype(str)
+        )
+
+        dim_season = dim_season[['sk_season_id', 'sk_title', 'sk_season']]
+
+        dim_season.to_parquet(self.silver_path / 'dim_season.parquet', compression='snappy')
+        print(f"dim_season saved. Shape: {dim_season.shape}")
+        return dim_season
+
+    def transform_fact_series_performance(self, dim_season, dim_time, bridge_gen):
+        """
+        Creates fact_series_performance — periodic snapshot per (series x season x year x genre).
+
+        Design notes:
+          - Type: Periodic Snapshot
+          - Grain: one row per (sk_title x sk_season_id x sk_time x sk_genre)
+          - Additive measures    : num_episodes, total_runtime_min, total_votes
+          - Semi-additive measures: avg_rating, rating_max, rating_min, stddev_rating
+            → comparable within the same series/period, MUST NOT be summed across series
+          - stddev_rating captures quality variance within a season (answers Q3: consistency)
+        """
+        print("Transforming: fact_series_performance")
+
+        # 1. Load ratings and attach to episodes
+        ratings = pd.read_csv(
+            self.raw_path / 'title.ratings.tsv/data.tsv',
+            sep='\t', na_values='\\N'
+        )
+
+        dim_episode = pd.read_parquet(self.silver_path / 'dim_episode.parquet')
+
+        episodes = dim_episode.merge(
+            ratings.rename(columns={'tconst': 'sk_episode'}),
+            on='sk_episode',
+            how='left'
+        )
+
+        # Attach runtimeMinutes from title_basics (episode level)
+        runtime = self.title_basics[['tconst', 'runtimeMinutes']].rename(
+            columns={'tconst': 'sk_episode'}
+        )
+        runtime['runtimeMinutes'] = pd.to_numeric(runtime['runtimeMinutes'], errors='coerce')
+        episodes = episodes.merge(runtime, on='sk_episode', how='left')
+
+        episodes = episodes.dropna(subset=['sk_season'])
+
+        # 2. Aggregate measures per (sk_title, sk_season)
+        fact = (
+            episodes
+            .groupby(['sk_title', 'sk_season'], as_index=False)
+            .agg(
+                num_episodes      = ('sk_episode',      'count'),
+                total_runtime_min = ('runtimeMinutes',  'sum'),
+                total_votes       = ('numVotes',        'sum'),
+                avg_rating        = ('averageRating',   'mean'),
+                rating_max        = ('averageRating',   'max'),
+                rating_min        = ('averageRating',   'min'),
+                stddev_rating     = ('averageRating',   'std'),
+            )
+        )
+
+        # Round semi-additive measures to match DDL precision
+        fact['avg_rating']    = fact['avg_rating'].round(1)
+        fact['rating_max']    = fact['rating_max'].round(1)
+        fact['rating_min']    = fact['rating_min'].round(1)
+        fact['stddev_rating'] = fact['stddev_rating'].round(2)
+
+        del episodes
+        gc.collect()
+
+        # 3. Resolve sk_season_id via dim_season
+        fact = fact.merge(
+            dim_season[['sk_season_id', 'sk_title', 'sk_season']],
+            on=['sk_title', 'sk_season'],
+            how='inner'
+        ).drop(columns=['sk_season'])
+
+        # 4. Resolve sk_time: match series startYear to dim_time
+        series_year = self.title_basics[['tconst', 'startYear']].rename(
+            columns={'tconst': 'sk_title'}
+        )
+        series_year['startYear'] = pd.to_numeric(series_year['startYear'], errors='coerce')
+
+        fact = fact.merge(series_year, on='sk_title', how='left')
+        fact = fact.merge(
+            dim_time[['sk_time', 'year']],
+            left_on='startYear',
+            right_on='year',
+            how='left'
+        ).drop(columns=['startYear', 'year'])
+
+        # 5. Expand to one row per genre via bridge_gen
+        genre_lookup = bridge_gen[['sk_title', 'sk_genre', 'sk_genre_group']].drop_duplicates()
+        fact = fact.merge(genre_lookup, on='sk_title', how='left')
+
+        # 6. Select final columns and remove unresolvable keys
+        fact = fact[[
+            'sk_title', 'sk_season_id', 'sk_time', 'sk_genre',
+            'num_episodes', 'total_runtime_min', 'total_votes',
+            'avg_rating', 'rating_max', 'rating_min', 'stddev_rating'
+        ]]
+        fact = fact.dropna(subset=['sk_time', 'sk_genre'])
+        fact = fact.drop_duplicates(
+            subset=['sk_title', 'sk_season_id', 'sk_time', 'sk_genre']
+        ).reset_index(drop=True)
+
+        fact.to_parquet(
+            self.silver_path / 'fact_series_performance.parquet', compression='snappy'
+        )
+        print(f"fact_series_performance saved. Shape: {fact.shape}")
+
     def run_pipeline(self):
         """
         Orchestrates the standardized ETL flow.
@@ -397,6 +566,12 @@ class Transformer:
         dim_person = self.transform_dim_person(bridge_prof)
         self.transform_fact_participations(dim_title, dim_roles, dim_person, bridge_kwn_titles)
         # self.transform_fact_ratings(dim_title, dim_episode)  # New Fact Table
+        
+        # TV series market analysis dimensions and fact
+        dim_time   = self.transform_dim_time()
+        dim_season = self.transform_dim_season(dim_episode)
+        self.transform_fact_series_performance(dim_season, dim_time, bridge_gen)
 
+        
         print("=== ETL Pipeline Finished Successfully ===")
         gc.collect()
