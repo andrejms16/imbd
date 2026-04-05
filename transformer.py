@@ -193,17 +193,15 @@ class Transformer:
 
     def transform_fact_ratings(self, dim_title, dim_episode):
         """
-        Creates the fact_ratings table by joining episodes, ratings, and principals.
-        This expands ratings to every person involved in the episode.
+        Creates the fact_ratings table linking episodes, ratings, and specific professions.
         """
         print("Transforming: fact_ratings")
 
-        # 1. Load ratings data (Make sure to add this to _load_raw_files)
+        # 1. Load ratings data
         ratings = pd.read_csv(self.raw_path / 'title.ratings.tsv/data.tsv',
                               sep='\t', na_values='\\N')
 
-        # 2. Filter ratings: Only keep ratings for episodes in our dim_episode
-        # This ensures we respect the "TV Series + Post-2000" filter
+        # 2. Filter ratings to our universe (Episodes of TV Series post-2000)
         fact_ratings = ratings.merge(
             dim_episode[['sk_episode', 'sk_title']],
             left_on='tconst',
@@ -211,27 +209,35 @@ class Transformer:
             how='inner'
         )
 
-        # 3. Join with principals to get the people involved in each episode
-        # We join on sk_episode (which is the tconst of the episode)
+        # 3. Join with principals to get people and their categories (professions)
+        # We rename 'category' as it is the natural key to join with dim_profession
+        principals = self.title_principals.rename(columns={
+            'tconst': 'sk_episode',
+            'nconst': 'sk_person',
+            'category': 'profession_nm'
+        })
+
         fact_ratings = fact_ratings.merge(
-            self.title_principals.rename(columns={'tconst': 'sk_episode', 'nconst': 'sk_person'}),
+            principals[['sk_episode', 'sk_person', 'profession_nm']],
             on='sk_episode',
             how='inner'
         )
 
-        # 4. Join with dim_title to bring sk_genre_group
-        # Note: dim_title contains the sk_genre_group of the PARENT series
+        # 4. Join with dim_profession to get the standardized sk_profession
+        # We read the dim_profession that was already saved in silver
+        dim_prof = pd.read_parquet(self.silver_path / 'dim_profession.parquet')
+
+        fact_ratings = fact_ratings.merge(
+            dim_prof,
+            on='profession_nm',
+            how='inner'
+        )
+
+        # 5. Join with dim_title to bring sk_genre_group of the parent series
         fact_ratings = fact_ratings.merge(
             dim_title[['sk_title', 'sk_genre_group']],
             on='sk_title',
             how='left'
-        )
-
-        # 5. Create sk_role (Standardized as person_episode_ordering)
-        fact_ratings['sk_role'] = (
-                fact_ratings['sk_person'] + '_' +
-                fact_ratings['sk_episode'] + '_' +
-                fact_ratings['ordering'].astype(str)
         )
 
         # 6. Final selection and renaming
@@ -240,16 +246,21 @@ class Transformer:
             'numVotes': 'num_votes'
         })
 
+        # We now include sk_profession instead of sk_role
         columns_to_keep = [
-            'sk_episode', 'sk_person', 'sk_genre_group',
-            'sk_role', 'average_rating', 'num_votes'
+            'sk_episode',
+            'sk_person',
+            'sk_profession',
+            'sk_genre_group',
+            'average_rating',
+            'num_votes'
         ]
 
         fact_ratings = fact_ratings[columns_to_keep]
 
         # 7. Save to Parquet
         fact_ratings.to_parquet(self.silver_path / 'fact_ratings.parquet', compression='snappy')
-        print(f"fact_ratings saved. Shape: {fact_ratings.shape}")
+        print(f"fact_ratings saved with sk_profession. Shape: {fact_ratings.shape}")
 
     def run_pipeline(self):
         """
