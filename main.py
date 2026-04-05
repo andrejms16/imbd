@@ -19,21 +19,21 @@ if __name__ == "__main__":
     silver_path = Path.cwd() / "data/silver"
     loader = Loader(**DB_CONFIG)
 
+
     files_to_load = [
         # ("bridge_genres.parquet", "bridge_genres"),
-        ("bridge_kwn_titles.parquet", "bridge_kwn_titles"),
         # ("bridge_profession_group.parquet", "bridge_profession_group"),
         # ("dim_episode.parquet", "dim_episode"),
         # ("dim_filter.parquet", "dim_filter"),
         # ("dim_genres.parquet", "dim_genres"),
         # ("dim_person.parquet", "dim_person"),
-        ("dim_roles.parquet", "dim_roles"),
+        # ("dim_roles.parquet", "dim_roles"),
+        # ("bridge_kwn_titles.parquet", "bridge_kwn_titles"),
         # ("dim_profession.parquet", "dim_profession"),
         # ("dim_title_basic.parquet", "dim_title"),
         # ("fact_ratings.parquet", "fact_ratings"),
-        ("participations_pers.parquet", "fact_participations")
+        # ("participations_pers.parquet", "fact_participations")
         #("dim_season.parquet", "dim_season"),
-        #("dim_series.parquet", "dim_series"),
         #("fact_series_performance.parquet", "fact_series_performance")
     ]
 
