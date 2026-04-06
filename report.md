@@ -97,12 +97,15 @@ The following matrix illustrates how our facts interact with shared dimensions:
 
 The model is built on three primary Star Schemas:
  
-- **fact_series_performance** — TV series market performance, aggregated at season level
+- **fact_series_performance** — TV series market performance, aggregated at season level.
 
 ![DimensionalModel](Visualization/star_schema_serie_performance.drawio.png)
 
-- **fact_ratings** — Episode-level ratings linked to cast and crew
-- **fact_participations** — Factless fact linking people to titles via bridge tables
+- **fact_ratings** — Episode-level ratings linked to cast and crew.
+
+![Ratings Star Model](Visualization/ratings.png)
+
+- **fact_participations** — Factless fact table linked to dimensional information about the participants and title.
 
 ![DimensionalModel](Visualization/star_schema_participations.png)
 
