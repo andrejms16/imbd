@@ -403,7 +403,45 @@ To communicate the findings, the following visualizations are implemented:
 **Visual 1 — Dual-axis line chart:** Total Votes (primary Y-axis) and Avg Rating (secondary Y-axis) by year. Two vertical reference lines mark the Quality Era (2000) and the Streaming Era (2013). The vote peak around 2011–2012 followed by a post-2013 decline is clearly visible.
  
 **Visual 2 — Top 10 Most Voted Series:** Bar chart showing Game of Thrones dominating with >10M votes — nearly double the second-place series (The Walking Dead).
- 
+
+---
+
+Q5 to Q11 are answered using the ratings star schema implemented in Power BI:
+
+![Ratings Star Model](Visualization/ratings.png)
+
+The `fact_ratings` table is designed at a Participant-per-Episode grain. This means that episode-level metrics (ratings and votes) are duplicated for every person involved in a production. To ensure analytical accuracy, the following DAX measures were implemented:
+
+1. Rating (Average)
+   - Formula: Rating = `AVERAGE('public fact_ratings'[average_rating])`
+   - Description: This measure calculates the simple arithmetic mean of the ratings provided for the filtered context.
+   - Behavior: Since the average_rating is a non-additive quality metric, using AVERAGE is generally safe when analyzing specific episodes. However, when aggregating at the Series or Genre level, it provides a mean of means, which is useful for identifying overall quality trends across the casting.
+
+2. Series Corrected Votes (Weighted Total)
+   - Formula: `Series Corrected Votes = SUMX(VALUES('public fact_ratings'[sk_episode]), CALCULATE(MAX('public fact_ratings'[num_votes])))`
+   - Description: This is the primary measure for reporting total votes.
+   - Logic: It first identifies a list of unique episodes (VALUES) within the current filter. For each unique episode, it retrieves the vote count once (MAX) and then sums those individual values.
+   - Purpose: It effectively eliminates the "data inflation" caused by the many-to-many relationship, ensuring that an episode with 1,000 votes is only counted as 1,000, regardless of how many actors or directors are linked to it. 
+
+
+### Q5 — Which genres consistently receive the highest average ratings?
+
+![Q5](Visualization/Q5.png)
+
+### Q6 — Which genres are consistently the most popular based on the number of votes?
+
+![Q6](Visualization/Q6.png)
+
+### Q7 — Who are the top 10 directors whose movies have the highest average rating with at least 100,000 total votes?
+
+### Q8 — Who are the top 10 actors whose movies have the highest average rating with at least 100,000 total votes?
+
+### Q9 — What is the correlation between the total number of episodes in a series and its overall average rating?
+
+### Q10 — At what point (season/episode number) do highly-rated series typically start to see a significant decline in user ratings? (Jum the Shark effect)
+
+### Q11 — Is there a statistically significant difference between a series' average rating and the rating of its final episode? (Series finale performance)
+
 ### Q19 — Episode Count Impact
  
 ![Q19](Visualization/Q19.jpeg)
