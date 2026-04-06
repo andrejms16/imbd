@@ -50,6 +50,7 @@ The following matrix illustrates how our facts interact with shared dimensions:
 |:---|:---|
 | **Grain** | One row per series × season × release year × genre |
 | **Type** | Periodic Snapshot |
+| **Description** | Aggregates episode-level data into seasonal snapshots per series, enabling trend analysis of rating quality, audience engagement, and genre dominance over time.|
  
 | Measure | Type | SQL Type | Formula (ETL) |
 |:---|:---:|:---:|:---|
@@ -69,7 +70,7 @@ The following matrix illustrates how our facts interact with shared dimensions:
 |:---|:---|
 | **Grain** | The grain of this table is defined at the Participant-per-Episode level. This means there is one row for every person (Actor, Director, Writer, etc.) associated with a specific episode of a TV Series. |
 | **Type** | Transaction Fact |
- | **Description** | This table captures the performance metrics (ratings and votes) of episodes, mapped to every individual involved in the production.|
+| **Description** | This table captures the performance metrics (ratings and votes) of episodes, mapped to every individual involved in the production.|
  
 | Measure |     Type      | SQL Type | Formula                                                                                                                                       |
 |:---|:-------------:|:---:|:----------------------------------------------------------------------------------------------------------------------------------------------|
@@ -82,6 +83,7 @@ The following matrix illustrates how our facts interact with shared dimensions:
 |:---|:---|
 | **Grain** | One row per person × title × role |
 | **Type** | Factless Fact Table |
+| **Description** | Records every person-title-role combination as a factless event, enabling analysis of participation patterns, career specialisation, and collaborative networks across the TV industry.|
  
 | Measure | Type | Notes |
 |:---|:---:|:---|
