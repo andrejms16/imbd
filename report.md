@@ -459,9 +459,19 @@ The director's analysis identifies **Vince Gilligan** as the most consistent hig
 
 Our correlation analysis confirms a negative trend between series length and quality. While short series (0-200 episodes) exhibit high volatility in ratings, longer series tend to converge towards lower average scores. This suggests that sustained production over hundreds of episodes is often associated with a decline in perceived quality, with only a few outliers managing to maintain 'prestige' ratings in the long run.
 
-### Q10 — At what point (season/episode number) do highly-rated series typically start to see a significant decline in user ratings? (Jum the Shark effect)
+![Q9_2](Visualization/Q92.png)
+
+Our Small Multiples analysis confirms that the correlation between quantity and quality is genre-dependent. While Drama and Action exhibit remarkable stability regardless of episode count, Comedy shows a clear 'Fatigue Effect,' with average ratings declining significantly as the series length exceeds 400 episodes.
+
+### Q10 — At what point (episode number) do highly-rated series typically start to see a significant decline in user ratings? (Jum the Shark effect)
+
+![Q10](Visualization/Q10.png)
+
+Analysis of high-engagement episodes (>50k votes) reveals a clear pattern: quality typically peaks at episode 10 and maintains a high plateau until episode 22. Beyond this point, we observe a significant 'Jump the Shark' effect, where the average rating drops by nearly 0.2 points in a short span. This suggests that for major TV productions, the transition into the late 20s in episode count represents a critical risk zone for audience retention and quality perception.
 
 ### Q11 — Is there a statistically significant difference between a series' average rating and the rating of its final episode? (Series finale performance)
+
+
 
 ### Q19 — Episode Count Impact
  
