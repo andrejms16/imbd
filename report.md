@@ -469,10 +469,6 @@ Our Small Multiples analysis confirms that the correlation between quantity and 
 
 Analysis of high-engagement episodes (>50k votes) reveals a clear pattern: quality typically peaks at episode 10 and maintains a high plateau until episode 22. Beyond this point, we observe a significant 'Jump the Shark' effect, where the average rating drops by nearly 0.2 points in a short span. This suggests that for major TV productions, the transition into the late 20s in episode count represents a critical risk zone for audience retention and quality perception.
 
-### Q11 — Is there a statistically significant difference between a series' average rating and the rating of its final episode? (Series finale performance)
-
-
-
 ### Q19 — Episode Count Impact
  
 ![Q19](Visualization/Q19.jpeg)
