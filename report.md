@@ -131,7 +131,7 @@ To ensure a professional and scalable data pipeline, we implemented a modular ar
 
 #### The BPMN Diagram:
 
-![ETL Diagram](Visualization/etl_project.png)
+![ETL Diagram](Visualization/etl_project.drawio.png)
 
 #### The Transformer Class
 
