@@ -126,6 +126,10 @@ The data was sourced from the IMDb public TSV files.
 
 To ensure a professional and scalable data pipeline, we implemented a modular architecture using Python classes. This approach divides the data lifecycle into three distinct layers: Bronze (Raw TSV), Silver (Cleaned Parquet), and Gold (PostgreSQL Warehouse).
 
+#### The BPMN Diagram:
+
+![ETL Diagram](Visualization/etl_bpmn.jpg)
+
 #### The Transformer Class
 
 This class acts as the business logic engine. It encapsulates all transformation rules, ensuring that data is filtered and standardized before leaving the Python environment.
