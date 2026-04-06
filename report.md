@@ -435,6 +435,8 @@ The `fact_ratings` table is designed at a Participant-per-Episode grain. This me
 
 ![Q5](Visualization/Q5.png)
 
+Our cross-genre analysis reveals an inverse relationship between production volume and average rating. Niche genres like Musical and Western boast the highest quality scores (~8.0), likely due to high production value and dedicated fanbases. In contrast, mass-market genres like Comedy show lower average ratings.
+
 ### Q6 — Which genres are consistently the most popular based on the number of votes?
 
 ![Q6](Visualization/Q6.png)
