@@ -436,7 +436,11 @@ The `fact_ratings` table is designed at a Participant-per-Episode grain. This me
 
 ![Q6](Visualization/Q6.png)
 
+While the TV landscape features over 28 genres, popularity is consistently dominated by a core group. As seen in the visualization, Drama, Action and Comedy maintain a combined vote share of over 40% consistently since the year 2000."
+
 ### Q7 — Who are the top 10 directors whose movies have the highest average rating with at least 100,000 total votes?
+
+
 
 ### Q8 — Who are the top 10 actors whose movies have the highest average rating with at least 100,000 total votes?
 
