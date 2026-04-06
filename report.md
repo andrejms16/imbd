@@ -67,13 +67,14 @@ The following matrix illustrates how our facts interact with shared dimensions:
  
 | | |
 |:---|:---|
-| **Grain** | One row per episode × person × profession |
+| **Grain** | The grain of this table is defined at the Participant-per-Episode level. This means there is one row for every person (Actor, Director, Writer, etc.) associated with a specific episode of a TV Series. |
 | **Type** | Transaction Fact |
+ | **Description** | This table captures the performance metrics (ratings and votes) of episodes, mapped to every individual involved in the production.|
  
-| Measure | Type | SQL Type | Formula |
-|:---|:---:|:---:|:---|
-| `average_rating` | Semi-additive | NUMERIC(3,1) | `averageRating` from title_ratings |
-| `num_votes` | Additive | INTEGER | `numVotes` from title_ratings |
+| Measure |     Type      | SQL Type | Formula                                                                                                                                       |
+|:---|:-------------:|:---:|:----------------------------------------------------------------------------------------------------------------------------------------------|
+| `average_rating` | Non-Additive  | NUMERIC(3,1) | `averageRating` from title.ratings. Must be averaged carefully across dimensions.                                                             |
+| `num_votes` | Semi-Additive | INTEGER | `numVotes` from `title.ratings`. **Warning:** Values are duplicated per participant. DISTINCT or MAX logic should be used for correct totals. |
  
 #### participations_pers (Factless Fact)
  
@@ -117,18 +118,34 @@ The model is built on three primary Star Schemas:
 
 ## 4. Data Sources selection. Extraction, transformation and loading.
 
-For better structure the data enrichment we divided the data layers in bronze (raw data), silver (dims and facts transformed) and gold (if needed snapshots or aggregations). 
+### Data Source
 
-Data Source:
-The data was sourced from the IMDb public TSV files. Given the size of the files (e.g., `title.akas` or `title.principals`), we followed a strict ETL pipeline:
+The data was sourced from the IMDb public TSV files. 
 
-1.  **Extraction:** Using our `Loader` class, we ingested Parquet-formatted data into a PostgreSQL staging area. To prevent memory saturation, the loader processes data in **batches of 25,000 rows** using `pyarrow`.
-2.  **Transformation:** Handled via the `Transformer` classes, where we applied business logic filters (filtering for `titleType = 'tvSeries'`, years $\ge 2000$, and removing adult content). During this stage, we also generated surrogate keys and calculated aggregated measures like the `stddev_rating` for season quality variance.
-3.  **Loading:** The final step involves populating the Star Schema tables. We used an "Append" strategy for the facts and an "Upsert" (or Type 1/Type 2) logic for dimensions to maintain historical accuracy.
+### Core Components of the ETL Pipeline
 
-## Bronze Layer Transformations
+To ensure a professional and scalable data pipeline, we implemented a modular architecture using Python classes. This approach divides the data lifecycle into three distinct layers: Bronze (Raw TSV), Silver (Cleaned Parquet), and Gold (PostgreSQL Warehouse).
 
-### 1. Data Extraction
+#### The Transformer Class
+
+This class acts as the business logic engine. It encapsulates all transformation rules, ensuring that data is filtered and standardized before leaving the Python environment.
+
+- **Encapsulation:** Each dimension and fact table has its own dedicated method (e.g., transform_dim_episode).
+- **Memory Efficiency:** Uses pandas with specific data types and gc.collect() to handle large-scale IMDb datasets without crashing local environments.
+- **Consistency:** Implements a Master Filter logic that cascades through all methods, ensuring only TV Series post-2000 are processed.
+
+#### The Loader Class
+
+The Loader is responsible for the physical movement of data from the Silver layer (Parquet) to the PostgreSQL Data Warehouse.
+
+- **Batch Processing:** To prevent RAM saturation, it utilizes pyarrow.parquet.iter_batches to stream data in configurable batches (default: 25,000 rows).
+- **Database Integration:** Leverages SQLAlchemy and the multi method for optimized PostgreSQL inserts.
+- **Schema Flexibility:** Supports "Replace" and "Append" strategies to initialize or update the Star Schema.
+
+
+### Bronze to Silver Layer Transformations
+
+#### Data Extraction
 
 Raw data source files from IMDB:
 - `name.basics.tsv` - Participant information (9.5M+ records)
@@ -137,7 +154,7 @@ Raw data source files from IMDB:
 - `title.episode.tsv` - Episode information
 - `title.ratings.tsv` - Rating data
 
-### 2. Initial Filtering - TV Series Focus
+#### Initial Filtering - TV Series Focus
 
 Created `dim_filter` table to establish filtering criteria: 
 - titleType = 'tvSeries'
@@ -150,20 +167,21 @@ Created `dim_filter` table to establish filtering criteria:
 - This filter cascades through all dimensional tables via inner joins
 - Ensures data consistency and referential integrity
 
-### 3. Dimensional Table Creation with Filtering
+#### Dimensional Table Creation with Filtering
 
-#### dim_profession & bridge_profession_group
-**Purpose:** Normalize participant professions (many-to-many relationship)
+##### dim_profession & bridge_profession_group
+**Purpose:** Normalize participant professions and handle many-to-many relationships with weighting factors.
 
 **Transformation Logic:**
 ```
 Input: name_basics.primaryProfession (comma-separated)
 └─→ Split & Explode
     └─→ Create dim_profession (unique professions)
-        └─→ Map profession IDs
+        └─→ Map surrogate keys: sk_profession
             └─→ Create bridge_profession_group
-                └─→ Apply dim_filter (keep only TV series participants)
-                    └─→ Calculate weighting_factor_prf = 1/count(professions per person)
+                └─→ Join with dim_filter (sk_person)
+                    └─→ Create sk_profession_group (per person)
+                        └─→ Calculate weight_factor_prf = 1/count(professions per person)
 ```
 
 **Key Metrics:**
@@ -171,74 +189,146 @@ Input: name_basics.primaryProfession (comma-separated)
 - Participants with professions (TV series): ~50K
 - Average professions per participant: 1.3
 
-#### dim_person
-**Purpose:** Central participant dimension with biographical data
+##### dim_person
+**Purpose:** Central participant dimension with demographic and professional group context.
 
 **Transformation Logic:**
 ```
-Input: name.basics filtered records
-└─→ Select: nconst, primaryName, birthYear, deathYear
-    └─→ Join with bridge_profession_group
-        └─→ Extract profession_group_id
-            └─→ Apply dim_filter on nconst
-Output: Unique participants with demographic & profession data
+Input: name.basics 
+└─→ Select & Rename: nconst → sk_person, primaryName, birthYear, deathYear
+    └─→ Join with bridge_profession_group (inner)
+        └─→ Extract sk_profession_group
+            └─→ Filter: Keep only participants in dim_filter
+Output: Unique participants with biographical & profession group data
 ```
 
 
-#### dim_roles
-**Purpose:** Detailed role information for each participation
+##### dim_roles
+**Purpose:** Granular detail of every character and role played by a participant.
 
 **Transformation Logic:**
 ```
-Input: title_principals + title_basics (filtered)
-└─→ Create role_id = nconst + tconst + ordering
-    └─→ Join with title_basics to get titleType
-        └─→ Apply dim_filter on both nconst & tconst
-Output: 800K+ detailed role records
+Input: title_principals + title_basics
+└─→ Parse character strings (ast.literal_eval) & Explode list
+    └─→ Generate char_rank (per participation)
+        └─→ Create sk_role = sk_person + sk_title + ordering + char_rank
+            └─→ Join with title_basics (titleType)
+                └─→ Apply dim_filter (sk_person & sk_title)
+Output: Records of roles including category, job, and specific characters
 ```
 
 **Columns:** role_id, nconst, tconst, titleType, category, job, characters
 
-#### dim_title_basic
-**Purpose:** Title metadata and genre associations
+##### dim_title_basic
+**Purpose:** Master metadata for TV Series and their genre group associations.
 
 **Transformation Logic:**
 ```
-Input: title_basics filtered for TV series
-└─→ Select: tconst, titleType, primaryTitle, originalTitle, 
-           isAdult, startYear, endYear, runtimeMinutes
-    └─→ Join with bridge_genres to get genre_group_id
-        └─→ Apply dim_filter on tconst
+Input: title_basics filtered for TV series (startYear >= 2000)
+└─→ Rename: tconst → sk_title
+    └─→ Select: titleType, primaryTitle, originalTitle, startYear, endYear, runtimeMinutes
+        └─→ Left Join with bridge_genres (sk_genre_group)
+            └─→ Apply dim_filter (sk_title)
 ```
 
-#### dim_genre & bridge_genres
-**Purpose:** Normalize genre information
+##### dim_genre & bridge_genres
+**Purpose:** Standardize genres and manage the multi-genre nature of TV series.
 
 **Transformation Logic:**
 ```
 Input: title_basics.genres (comma-separated)
 └─→ Split & Explode
-    └─→ Create dim_genres (unique genres: 28)
-        └─→ Create bridge_genres
-            └─→ Calculate genre_group_id per title
-                └─→ weighting_factor_gen = 1/count(genres per title)
-                    └─→ Apply dim_filter
+    └─→ Create dim_genres (unique genres) + sk_genre
+        └─→ Create bridge_genres (sk_title + sk_genre)
+            └─→ Create sk_genre_group (per series)
+                └─→ Calculate weight_factor_gen = 1/count(genres per title)
+                    └─→ Filter via dim_filter (sk_title)
 ```
 
-#### bridge_kwn_titles
-**Purpose:** Known titles mentioned in participant profiles
+##### dim_episode
+**Purpose:** Hierarchical dimension linking episodes to their parent series and seasons.
 
 **Transformation Logic:**
 ```
-Input: name_basics.knownForTitles (comma-separated tconst)
-└─→ Split & Explode
-    └─→ Create bridge_kwn_titles
-        └─→ Calculate kwn_title_group_id
-            └─→ weighting_factor_grp = 1/count(known titles per person)
-                └─→ Apply dim_filter on both nconst & tconst
+Input: title_episodes + dim_filter
+└─→ Inner Join: parentTconst with dim_filter.sk_title
+    └─→ Rename: tconst → sk_episode, parentTconst → sk_title
+        └─→ Rename: seasonNumber → sk_season, episodeNumber → episode_num
+            └─→ Cast numeric types for season and episode numbers
 ```
 
+##### dim_season
+**Purpose:** Intermediate hierarchy level for season-based performance analysis.
 
+**Transformation Logic:**
+```
+Input: dim_episode
+└─→ Select: sk_title, sk_season (Drop Duplicates)
+    └─→ Generate sk_season_id = sk_title + "_s" + sk_season
+        └─→ Sort by Series and Season number
+```
+
+##### dim_time
+**Purpose:** Temporal dimension for trend analysis and TV era grouping.
+
+**Transformation Logic:**
+```
+Input: Programmatic generation (Years 1900-2030)
+└─→ Create sk_time (surrogate) and year (natural)
+    └─→ Map tv_era: Classic, Cable, Quality, or Streaming Era
+        └─→ Map period: Decade-based groupings (e.g., 2000-2009)
+```
+
+##### bridge_kwn_titles
+**Purpose:** Linkage between participants and the titles they are most "Known For".
+
+**Transformation Logic:**
+```
+Input: name_basics.knownForTitles (comma-separated)
+└─→ Split & Explode
+    └─→ Rename: tconst → sk_title, nconst → sk_person
+        └─→ Inner Join: dim_filter (sk_person & sk_title)
+            └─→ Create sk_kwn_title_group & weight_factor_grp
+```
+
+### Fact Table Creation
+
+##### fact_participations
+**Purpose:** Transactional fact table recording all production involvements.
+
+**Transformation Logic:**
+```
+Input: dim_title + dim_roles + dim_person + bridge_kwn_titles
+└─→ Multi-Join: Connect Series, Roles, Persons, and Known Titles
+    └─→ Filter: Final validation with dim_filter (inner)
+        └─→ Constant: participation_count = 1
+```
+
+##### fact_ratings
+**Purpose:** Fact table expanding episode quality metrics to participants.
+
+**Transformation Logic:**
+```
+Input: title.ratings + dim_episode + title_principals + dim_profession
+└─→ Join: Ratings with Episodes (sk_episode)
+    └─→ Join: Principals (sk_person) to expand ratings per participant
+        └─→ Join: dim_profession to map specific sk_profession
+            └─→ Join: dim_title to inherit sk_genre_group
+```
+
+##### fact_series_performance
+**Purpose:** Periodic snapshot fact table for high-level series and season metrics.
+
+**Transformation Logic:**
+```
+Input: dim_episode + title.ratings + title_basics (runtime)
+└─→ Aggregate by (sk_title, sk_season):
+    ├─ Additive: num_episodes, total_runtime, total_votes
+    └─ Semi-Additive: avg_rating, rating_max, rating_min, stddev_rating
+        └─→ Join: dim_season (sk_season_id)
+            └─→ Join: dim_time (sk_time) via startYear
+                └─→ Join: bridge_gen (Expand per sk_genre)
+```
 
 ---
 
