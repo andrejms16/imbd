@@ -100,7 +100,9 @@ The model is built on three primary Star Schemas:
 ![DimensionalModel](Visualization/star_schema_serie_performance.drawio.png)
 
 - **fact_ratings** — Episode-level ratings linked to cast and crew
-- **participations_pers** — Factless fact linking people to titles via bridge tables
+- **fact_participations** — Factless fact linking people to titles via bridge tables
+
+![DimensionalModel](Visualization/star_schema_participations.png)
 
 ### Example: dim_series (Dummy Data)
 | sk_series | tconst | primaryTitle | startYear |
@@ -358,14 +360,11 @@ We have defined some questions to guide our analysis. (TODO)
 | Q9                                                                  | What is the correlation between the total number of episodes in a series and its overall average rating?                                               |
 | Q10                                                                 | At what point (season/episode number) do highly-rated series typically start to see a significant decline in user ratings? (Jum the Shark effect)      |
 | Q11                                                                 | Is there a statistically significant difference between a series' average rating and the rating of its final episode? (Series finale performance)      |
-| Q12                                                                 | Who are the most active participants in the IMDB dataset by number of participations across different title types?                                     |
-| Q13                                                                 | Which participants have accumulated the highest total runtime across all their participations?                                                         |
-| Q14                                                                 | Which participants have the most known for titles listed in their profiles  and how does this correlate with their actual participation count?         |
-| Q15                                                                 | Which participants have worked across the most distinct genres throughout their careers?                                                               |
-| Q16                                                                 | Which pairs of participants have the strongest collaborative relationships appearing together in the most titles?                                      |
-| Q17                                                                 | Which decades had the most active participants overall  and how has the rate of industry participation evolved across decades?                         |
-| Q18                                                                 | In which decade did each participant reach their career peak in terms of participation frequency  and what is the overall span of their career?        |
-| Q19                                                                 | Does episode count per season affect perceived quality? Do shorter seasons rate higher?                                                                |
+| Q12                                                                 | Who are the most active participants in the IMDB dataset by number of participations?                                     |
+| Q13                                                                 | Which participants are highlighted by specialization or generalization in terms of genres worked in their careers?                                                         |
+| Q14                                                                 | Which pairs of participants have the strongest collaborative relationships appearing together in the most titles and which genres their worked on?         |
+| Q15                                                                 | Who have more titles per genre (specialist in certain genres) and how many titles have they worked on?                                                               |
+| Q16                                                                 | Does episode count per season affect perceived quality? Do shorter seasons rate higher?                                                                |
 
 ---
 
@@ -476,14 +475,48 @@ Our Small Multiples analysis confirms that the correlation between quantity and 
 
 Analysis of high-engagement episodes (>50k votes) reveals a clear pattern: quality typically peaks at episode 10 and maintains a high plateau until episode 22. Beyond this point, we observe a significant 'Jump the Shark' effect, where the average rating drops by nearly 0.2 points in a short span. This suggests that for major TV productions, the transition into the late 20s in episode count represents a critical risk zone for audience retention and quality perception.
 
-### Q19 — Episode Count Impact
+### Q16 — Episode Count Impact
  
 ![Q19](Visualization/Q19.jpeg)
  
 **Visual 1 — Avg Rating by Season Length:** Bar chart showing Short (6–10 ep) as the highest-rated group.
  
 **Visual 2 — Avg Stddev by Season Length:** Bar chart showing Long (20+ ep) as the most inconsistent group, with stddev ~0.55 versus ~0.38 for Very Short seasons.
- 
+
+
+--- 
+
+Q12 to Q15
+
+### Q12 — Who are the most active participants in the IMDB dataset by number of participations?
+![Q12](Visualization/Q12.png)
+
+In any IMDb TV Series dataset, the most "active" participants are almost exclusively Voice Actors. Names like Grey Griffin, Frank Welker (Scooby-Doo), Tom Kenny (SpongeBob SquarePants), Tara Strong (The Fairly OddParents), and Dee Bradley Baker (Star Wars: The Clone Wars) dominate this list.
+
+In TV Series, a live-action actor shoots one episode and gets one credit. A voice actor might provide voices for 3-4 different background characters in a single episode, and animated shows often run for hundreds of episodes.
+
+
+### Q13 — Which participants are highlighted by specialization or generalization in terms of genres worked in their careers?  
+![Q13](Visualization/Q13.png)
+
+Generalists (Top Right): The prolific voice actors mentioned above. Because animation spans Comedy, Family, Action, and Sci-Fi, they naturally accumulate a massive variety of genres.
+
+Specialists (Top Left / Bottom Right): People with high title counts but low genre counts. For example, Jimmy Kay is a producer listed as specialist since though he have many titles produced, his focus is the music Tv Series. One intersting entity is the Liverpool F.C as specialist, what makes sense since they have a TV Series for the 2024 season of premier league, all concentrated in genre Sports.
+
+### — Q14 Which pairs of participants have the strongest collaborative relationships appearing together in the most titles and which genres their worked on?
+![Q14](Visualization/Q14.png)    
+
+This visualization reveals industry clusters. In the TV ecosystem, the strongest collaborative pairs are usually co-stars of long-running shows. For Talk-Shows we have highlights for Calvin Grubb , Aaron Elliot and Eric Whiteley. They produced Blind Wave Mailbag! which counts with 257 episodes, making them jump into the listing. There at least one more zones of highlighs. The voice actors in animations, action and adventure (Monica Rial, Hilary Haag). And
+
+### — Q15 Who have more titles per genre (specialist in certain genres) and how many titles have they worked on?  
+![Q15](Visualization/Q15.png)
+
+
+This visualization reinforces the mentioned important participation of voice actors and the power of animations world in TV series. They are not concentrated in Animation genre and many have genres defined as Action, Drama, Comedy, etc. making them highly representative in the participants analysis 
+
+---
+
+
 ### Visualizations for Q6–Q18
  
 
