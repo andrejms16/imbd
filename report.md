@@ -22,28 +22,19 @@ Our planning phase was guided by the need for conformed dimensions, ensuring tha
 ### Dimensional Bus Matrix
 The following matrix illustrates how our facts interact with shared dimensions:
 
-| Data Mart | Fact / Star | dim_time | dim_series | dim_season | dim_episode | dim_genre | dim_person | dim_role |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| **TV Series** | Episode Snapshot | X | X | X | | X | | |
-| **TV Series** | Episode Talent | X | | | X | | X | |
-| **TV Series** | Participations | | | | | | X | X |
+| Data Mart | Fact / Star | dim_time | dim_series | dim_season | dim_episode | dim_genre | bridge_genres | dim_person | dim_profession | dim_role|
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |:---: |:---: |
+| **TV Series** | Episode Snapshot | X | X | X | | X | | | | |
+| **TV Series** | Episode Talent | X | | | X | | X | X | X| |
+| **TV Series** | Participations | | | | | | | X | X | X |
 
 ### Dimensions Dictionary (Summary)
-Dimensions are stored as SCD (Slowly Changing Dimensions) where applicable. We utilize surrogate keys (SERIAL) to ensure integrity.
-
-* **dim_time:** Includes hierarchies for Year < Decade < TV Era.
-* **dim_series:** Contains metadata about the show (Title, Start Year, End Year).
-* **dim_person:** Information about actors and crew members (Name, Birth/Death Year).
-* **bridge_genres:** A bridge table to resolve the many-to-many relationship between titles and multiple genre tags.
+ 
+ TODO
 
 ### Facts Dictionary (Summary)
-We implemented two distinct types of fact tables to meet the assignment requirements:
 
-1.  **Episode Snapshot (Periodic Snapshot):** Captures performance metrics at a season granularity.
-    * *Additive:* `num_episodes`, `total_votes`, `total_runtime_min`.
-    * *Semi-additive:* `avg_rating` (Weighted), `stddev_rating` (Quality variance).
-2.  **Participations (Factless Fact Table):** Maps every instance of a person working on a title.
-    * *Measure:* `participation_count` (Constant 1).
+TODO
 
 ---
 
@@ -70,24 +61,158 @@ The model is built on two primary Star Schemas. The **Episode Snapshot Star** is
 
 ## 4. Data Sources selection. Extraction, transformation and loading.
 
+For better structure the data enrichment we divided the data layers in bronze (raw data), silver (dims and facts transformed) and gold (if needed snapshots or aggregations). 
+
+Data Source:
 The data was sourced from the IMDb public TSV files. Given the size of the files (e.g., `title.akas` or `title.principals`), we followed a strict ETL pipeline:
 
 1.  **Extraction:** Using our `Loader` class, we ingested Parquet-formatted data into a PostgreSQL staging area. To prevent memory saturation, the loader processes data in **batches of 25,000 rows** using `pyarrow`.
 2.  **Transformation:** Handled via the `Transformer` classes, where we applied business logic filters (filtering for `titleType = 'tvSeries'`, years $\ge 2000$, and removing adult content). During this stage, we also generated surrogate keys and calculated aggregated measures like the `stddev_rating` for season quality variance.
 3.  **Loading:** The final step involves populating the Star Schema tables. We used an "Append" strategy for the facts and an "Upsert" (or Type 1/Type 2) logic for dimensions to maintain historical accuracy.
 
+## Bronze Layer Transformations
+
+### 1. Data Extraction
+
+Raw data source files from IMDB:
+- `name.basics.tsv` - Participant information (9.5M+ records)
+- `title.basics.tsv` - Title information (11.5M+ records)
+- `title.principals.tsv` - Participation records (42M+ records)
+- `title.episode.tsv` - Episode information
+- `title.ratings.tsv` - Rating data
+
+### 2. Initial Filtering - TV Series Focus
+
+Created `dim_filter` table to establish filtering criteria: 
+- titleType = 'tvSeries'
+- startYear >= 2000
+- isAdult = 0
+
+
+**Impact:**
+- Initial records: ~11.5M all titles → **Filtered TV Series: ~300K records**
+- This filter cascades through all dimensional tables via inner joins
+- Ensures data consistency and referential integrity
+
+### 3. Dimensional Table Creation with Filtering
+
+#### dim_profession & bridge_profession_group
+**Purpose:** Normalize participant professions (many-to-many relationship)
+
+**Transformation Logic:**
+```
+Input: name_basics.primaryProfession (comma-separated)
+└─→ Split & Explode
+    └─→ Create dim_profession (unique professions)
+        └─→ Map profession IDs
+            └─→ Create bridge_profession_group
+                └─→ Apply dim_filter (keep only TV series participants)
+                    └─→ Calculate weighting_factor_prf = 1/count(professions per person)
+```
+
+**Key Metrics:**
+- Unique professions in dataset: 32
+- Participants with professions (TV series): ~50K
+- Average professions per participant: 1.3
+
+#### dim_person
+**Purpose:** Central participant dimension with biographical data
+
+**Transformation Logic:**
+```
+Input: name.basics filtered records
+└─→ Select: nconst, primaryName, birthYear, deathYear
+    └─→ Join with bridge_profession_group
+        └─→ Extract profession_group_id
+            └─→ Apply dim_filter on nconst
+Output: Unique participants with demographic & profession data
+```
+
+
+#### dim_roles
+**Purpose:** Detailed role information for each participation
+
+**Transformation Logic:**
+```
+Input: title_principals + title_basics (filtered)
+└─→ Create role_id = nconst + tconst + ordering
+    └─→ Join with title_basics to get titleType
+        └─→ Apply dim_filter on both nconst & tconst
+Output: 800K+ detailed role records
+```
+
+**Columns:** role_id, nconst, tconst, titleType, category, job, characters
+
+#### dim_title_basic
+**Purpose:** Title metadata and genre associations
+
+**Transformation Logic:**
+```
+Input: title_basics filtered for TV series
+└─→ Select: tconst, titleType, primaryTitle, originalTitle, 
+           isAdult, startYear, endYear, runtimeMinutes
+    └─→ Join with bridge_genres to get genre_group_id
+        └─→ Apply dim_filter on tconst
+```
+
+#### dim_genre & bridge_genres
+**Purpose:** Normalize genre information
+
+**Transformation Logic:**
+```
+Input: title_basics.genres (comma-separated)
+└─→ Split & Explode
+    └─→ Create dim_genres (unique genres: 28)
+        └─→ Create bridge_genres
+            └─→ Calculate genre_group_id per title
+                └─→ weighting_factor_gen = 1/count(genres per title)
+                    └─→ Apply dim_filter
+```
+
+#### bridge_kwn_titles
+**Purpose:** Known titles mentioned in participant profiles
+
+**Transformation Logic:**
+```
+Input: name_basics.knownForTitles (comma-separated tconst)
+└─→ Split & Explode
+    └─→ Create bridge_kwn_titles
+        └─→ Calculate kwn_title_group_id
+            └─→ weighting_factor_grp = 1/count(known titles per person)
+                └─→ Apply dim_filter on both nconst & tconst
+```
+
+
+
 ---
 
 ## 5. Querying and Data Analysis
 
-We have defined 7 core research questions to test the utility of the warehouse:
+We have defined some questions to guide our analysis. (TODO)
 
-* **Q1: Quality Fatigue:** Does the average rating drop as the number of seasons increases?
-* **Q2: Genre Dominance:** Which genres have the highest "Market Share" (count of titles) per decade?
-* **Q15: Professional Versatility:** Which participants have worked across the highest number of distinct genres?
-* **Q16: Industry Partnerships:** Identify the top 10 pairs of professionals who have collaborated on the most titles.
-* **Q17: Participation Trends:** Analyzing the growth of unique industry participants per decade since 2000.
-* **Q18: Career Peaks:** Identifying the "Peak Decade" for actors based on their participation frequency.
+| Research Questions — TV Series Market Analysis (IMDb)               |                                                                                                                                                        |
+|---------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Project 3 | Data Warehouse — Master in Data Science and Engineering |                                                                                                                                                        |
+| #                                                                   | Research Question                                                                                                                                      |
+| Q1                                                                  | Do series with more seasons have better or worse ratings over time?<br>Is there a 'quality fatigue' point as seasons increase?                         |
+| Q2                                                                  | Which TV genres dominated each decade and how did their average quality evolve?<br>From Westerns to Drama to Reality — what trends emerge?             |
+| Q3                                                                  | Do shorter series (1–2 seasons) have more consistent ratings than long-running ones?<br>Comparing quality variance: mini-series vs sagas.              |
+| Q4                                                                  | How has audience engagement (votes) in TV series evolved across decades?<br>Have series become more popular and when did streaming change the pattern? |
+| Q5                                                                  | Which genres consistently receive the highest average ratings?                                                                                         |
+| Q6                                                                  | Which genres are consistently the most popular based on the number of votes?                                                                           |
+| Q7                                                                  | Who are the top 10 directors whose movies have the highest average rating with at least 100,000 total votes?                                           |
+| Q8                                                                  | Who are the top 10 actors whose movies have the highest average rating with at least 100,000 total votes?                                              |
+| Q9                                                                  | What is the correlation between the total number of episodes in a series and its overall average rating?                                               |
+| Q10                                                                 | At what point (season/episode number) do highly-rated series typically start to see a significant decline in user ratings? (Jum the Shark effect)      |
+| Q11                                                                 | Is there a statistically significant difference between a series' average rating and the rating of its final episode? (Series finale performance)      |
+| Q12                                                                 | Who are the most active participants in the IMDB dataset by number of participations across different title types?                                     |
+| Q13                                                                 | Which participants have accumulated the highest total runtime across all their participations?                                                         |
+| Q14                                                                 | Which participants have the most known for titles listed in their profiles  and how does this correlate with their actual participation count?         |
+| Q15                                                                 | Which participants have worked across the most distinct genres throughout their careers?                                                               |
+| Q16                                                                 | Which pairs of participants have the strongest collaborative relationships appearing together in the most titles?                                      |
+| Q17                                                                 | Which decades had the most active participants overall  and how has the rate of industry participation evolved across decades?                         |
+| Q18                                                                 | In which decade did each participant reach their career peak in terms of participation frequency  and what is the overall span of their career?        |
+|                                                                     |                                                                                                                                                        |
 
 ---
 
