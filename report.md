@@ -440,7 +440,9 @@ While the TV landscape features over 28 genres, popularity is consistently domin
 
 ### Q7 — Who are the top 10 directors whose movies have the highest average rating with at least 100,000 total votes?
 
+![Q7](Visualization/Q7.png)
 
+Our analysis reveals that **Michael Potts** is the highest-rated actor among those with significant audience reach. By filtering for a minimum of 100,000 votes, we have isolated the top tier of television talent, where actors like Kit Harington and Dean Norris demonstrate an exceptional balance between critical acclaim (9.0+ ratings) and massive public engagement (1M+ votes)."
 
 ### Q8 — Who are the top 10 actors whose movies have the highest average rating with at least 100,000 total votes?
 
