@@ -20,11 +20,11 @@ Our planning phase was guided by the need for conformed dimensions, ensuring tha
 ### Dimensional Bus Matrix
 The following matrix illustrates how our facts interact with shared dimensions:
 
-| Data Mart | Fact / Star | dim_time | dim_series | dim_season | dim_episode | dim_genre | bridge_genres | dim_person | dim_profession | dim_role |
+| Data Mart | Fact / Star | dim_time | dim_title | dim_season | dim_episode | dim_genre | bridge_genres | dim_person | dim_profession | dim_role |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **TV Series** | fact_series_performance | X | X | X | | X | X | | | |
-| **TV Series** | fact_ratings | | | | X | | X | X | X | |
-| **TV Series** | participations_pers | | | | | | X | X | X | X |
+| **TV Series** | fact_ratings | |X| | X | | X | X | X | |
+| **TV Series** | participations_pers | |X| | | | X | X | X | X |
 
 ### Dimensions Dictionary (Summary)
  
@@ -105,19 +105,19 @@ The model is built on three primary Star Schemas:
 ![DimensionalModel](Visualization/star_schema_participations.png)
 
 ### Example: dim_series (Dummy Data)
-| sk_series | tconst | primaryTitle | startYear |
+| sk_title | tconst | primaryTitle | startYear |
 | :--- | :--- | :--- | :--- |
 | 1001 | tt0903747 | Breaking Bad | 2008 |
 | 1002 | tt0944947 | Game of Thrones | 2011 |
 
 ### Example: fact_series_performance (Dummy Data)
-| sk_series | sk_time | season_num | avg_rating | num_episodes | total_votes |
+| sk_title | sk_time | season_num | avg_rating | num_episodes | total_votes |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | 1001 | 2008 | 1 | 8.8 | 7 | 155000 |
 | 1001 | 2009 | 2 | 9.0 | 13 | 162000 |
 | 1002 | 2011 | 1 | 9.1 | 10 | 210000 |
 
-> **Note:** *[Placeholder for UML Model Image]* > The model utilizes Bridge Tables (e.g., `bridge_genres`) to ensure that a series with multiple genres (e.g., "Drama", "Crime") does not result in double-counting measures during aggregation.
+> **Note:** The model utilizes Bridge Tables (e.g., `bridge_genres`) to ensure that a series with multiple genres (e.g., "Drama", "Crime") does not result in double-counting measures during aggregation.
 
 ---
 
@@ -343,7 +343,7 @@ Input: dim_episode + title.ratings + title_basics (runtime)
 
 ## 5. Querying and Data Analysis
 
-We have defined some questions to guide our analysis. (TODO)
+We have defined some questions to guide our analysis.
 
 | Research Questions — TV Series Market Analysis (IMDb)               |                                                                                                                                                        |
 |---------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -355,8 +355,8 @@ We have defined some questions to guide our analysis. (TODO)
 | Q4                                                                  | How has audience engagement (votes) in TV series evolved across decades?<br>Have series become more popular and when did streaming change the pattern? |
 | Q5                                                                  | Which genres consistently receive the highest average ratings?                                                                                         |
 | Q6                                                                  | Which genres are consistently the most popular based on the number of votes?                                                                           |
-| Q7                                                                  | Who are the top 10 directors whose movies have the highest average rating with at least 100,000 total votes?                                           |
-| Q8                                                                  | Who are the top 10 actors whose movies have the highest average rating with at least 100,000 total votes?                                              |
+| Q7                                                                  | Who are the top 10 actors whose movies have the highest average rating with at least 100,000 total votes?                                              |
+| Q8                                                                  | Who are the top 10 directors whose movies have the highest average rating with at least 100,000 total votes?                                           |
 | Q9                                                                  | What is the correlation between the total number of episodes in a series and its overall average rating?                                               |
 | Q10                                                                 | At what point (season/episode number) do highly-rated series typically start to see a significant decline in user ratings? (Jum the Shark effect)      |
 | Q11                                                                 | Is there a statistically significant difference between a series' average rating and the rating of its final episode? (Series finale performance)      |
@@ -477,7 +477,7 @@ Analysis of high-engagement episodes (>50k votes) reveals a clear pattern: quali
 
 ### Q16 — Episode Count Impact
  
-![Q19](Visualization/Q19.jpeg)
+![Q16](Visualization/Q19.jpeg)
  
 **Visual 1 — Avg Rating by Season Length:** Bar chart showing Short (6–10 ep) as the highest-rated group.
  
@@ -503,22 +503,18 @@ Generalists (Top Right): The prolific voice actors mentioned above. Because anim
 
 Specialists (Top Left / Bottom Right): People with high title counts but low genre counts. For example, Jimmy Kay is a producer listed as specialist since though he have many titles produced, his focus is the music Tv Series. One intersting entity is the Liverpool F.C as specialist, what makes sense since they have a TV Series for the 2024 season of premier league, all concentrated in genre Sports.
 
-### — Q14 Which pairs of participants have the strongest collaborative relationships appearing together in the most titles and which genres their worked on?
+### Q14 — Which pairs of participants have the strongest collaborative relationships appearing together in the most titles and which genres their worked on?
 ![Q14](Visualization/Q14.png)    
 
-This visualization reveals industry clusters. In the TV ecosystem, the strongest collaborative pairs are usually co-stars of long-running shows. For Talk-Shows we have highlights for Calvin Grubb , Aaron Elliot and Eric Whiteley. They produced Blind Wave Mailbag! which counts with 257 episodes, making them jump into the listing. There at least one more zones of highlighs. The voice actors in animations, action and adventure (Monica Rial, Hilary Haag). And
+This visualization reveals industry clusters. In the TV ecosystem, the strongest collaborative pairs are usually co-stars of long-running shows. For Talk-Shows we have highlights for Calvin Grubb , Aaron Elliot and Eric Whiteley. They produced Blind Wave Mailbag! which counts with 257 episodes, making them jump into the listing. There at least one more zones of highlighs. The voice actors in animations, action and adventure (Monica Rial, Hilary Haag).
 
-### — Q15 Who have more titles per genre (specialist in certain genres) and how many titles have they worked on?  
+### Q15 — Who have more titles per genre (specialist in certain genres) and how many titles have they worked on?  
 ![Q15](Visualization/Q15.png)
 
 
 This visualization reinforces the mentioned important participation of voice actors and the power of animations world in TV series. They are not concentrated in Animation genre and many have genres defined as Action, Drama, Comedy, etc. making them highly representative in the participants analysis 
 
 ---
-
-
-### Visualizations for Q6–Q18
- 
 
 ## 7. Conclusion and Critical Reflection
 
