@@ -430,6 +430,11 @@ The `fact_ratings` table is designed at a Participant-per-Episode grain. This me
    - Logic: It first identifies a list of unique episodes (VALUES) within the current filter. For each unique episode, it retrieves the vote count once (MAX) and then sums those individual values.
    - Purpose: It effectively eliminates the "data inflation" caused by the many-to-many relationship, ensuring that an episode with 1,000 votes is only counted as 1,000, regardless of how many actors or directors are linked to it. 
 
+3. Unique Episode Count
+   - Formula = `Unique Episode Count = DISTINCTCOUNT('public fact_ratings'[sk_episode])`
+   - Description = This measure counts the number of unique episode identifiers present in the current filter context.
+   - Behavior = Due to the Participant-per-Episode granularity of the fact_ratings table, a standard COUNT would overstate the number of episodes by multiplying them by the number of crew members. `DISTINCTCOUNT` effectively collapses these duplicates, ensuring each episode is counted only once, regardless of how many actors or directors are linked to it.
+   - This is the foundational metric for analyzing series length, seasonal volume, and calculating the "Jump the Shark" effect. It should always be used as the denominator when calculating per-episode averages to ensure statistical integrity.
 
 ### Q5 — Which genres consistently receive the highest average ratings?
 
