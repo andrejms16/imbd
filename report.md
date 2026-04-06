@@ -282,15 +282,17 @@ To communicate the findings, the following visualizations are implemented:
 
 ### Q1 — Global Rating Trend by Season
  
-> *[Insert Power BI screenshot — Q1 page]*
- 
 **Visual 1 — Global Rating Trend (all series):** Line chart with linear regression trendline. X-axis: `sk_season` (filtered ≤ 20), Y-axis: `Avg Rating`. The trendline descends from 7.6 (season 1) to ~7.0 (season 20), providing statistical confirmation of quality fatigue across the full dataset.
+
+![Q1 - Global Rating Trend by Season](Visualization/Q1.jpeg) 
  
 **Visual 2 — Top 10 Most Voted Series (exploratory):** Line chart with one line per series, filtered to Top 10 by Total Votes. Game of Thrones is highlighted — its collapse from 9.1 in season 7 to 6.3 in season 8 is the most dramatic quality fatigue case in the dataset. Breaking Bad terminates at its peak (season 4-5), illustrating the alternative strategy.
+
+![Q1 - Rating Evolution Top 10 Series](Visualization/Q1Exploratorio.jpeg)
  
 ### Q2 — Genre Quality Heatmap
  
-> *[Insert Power BI screenshot — Q2 page]*
+![Q2](Visualization/Q2.jpeg)
  
 **Visual 1 — Heatmap:** Matrix visual with conditional formatting (red = low, green = high). Rows: year (2000–2021), Columns: genre_nm, Values: `Avg Rating`. Reveals Musical as a high-rating but low-volume genre, and Reality-TV as consistently the lowest-rated genre.
  
@@ -298,7 +300,7 @@ To communicate the findings, the following visualizations are implemented:
  
 ### Q3 — Consistency by Series Length
  
-> *[Insert Power BI screenshot — Q3 page]*
+![Q3](Visualization/Q3.jpeg)
  
 **Visual 1 — Avg Stddev by Longevity Group:** Bar chart showing quality variance per group. Mini-series have unexpectedly high variance; Short and Medium series are the most consistent.
  
@@ -306,15 +308,15 @@ To communicate the findings, the following visualizations are implemented:
  
 ### Q4 — Audience Engagement Evolution
  
-> *[Insert Power BI screenshot — Q4 page]*
+![Q4](Visualization/Q4.jpeg)
  
 **Visual 1 — Dual-axis line chart:** Total Votes (primary Y-axis) and Avg Rating (secondary Y-axis) by year. Two vertical reference lines mark the Quality Era (2000) and the Streaming Era (2013). The vote peak around 2011–2012 followed by a post-2013 decline is clearly visible.
  
 **Visual 2 — Top 10 Most Voted Series:** Bar chart showing Game of Thrones dominating with >10M votes — nearly double the second-place series (The Walking Dead).
  
-### Q5 — Episode Count Impact
+### Q19 — Episode Count Impact
  
-> *[Insert Power BI screenshot — Q5 page]*
+![Q19](Visualization/Q19.jpeg)
  
 **Visual 1 — Avg Rating by Season Length:** Bar chart showing Short (6–10 ep) as the highest-rated group.
  
