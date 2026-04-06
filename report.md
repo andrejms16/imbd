@@ -438,15 +438,23 @@ The `fact_ratings` table is designed at a Participant-per-Episode grain. This me
 
 While the TV landscape features over 28 genres, popularity is consistently dominated by a core group. As seen in the visualization, Drama, Action and Comedy maintain a combined vote share of over 40% consistently since the year 2000."
 
-### Q7 — Who are the top 10 directors whose movies have the highest average rating with at least 100,000 total votes?
+### Q7 — Who are the top 10 actors whose movies have the highest average rating with at least 100,000 total votes?
 
 ![Q7](Visualization/Q7.png)
 
 Our analysis reveals that **Michael Potts** is the highest-rated actor among those with significant audience reach. By filtering for a minimum of 100,000 votes, we have isolated the top tier of television talent, where actors like Kit Harington and Dean Norris demonstrate an exceptional balance between critical acclaim (9.0+ ratings) and massive public engagement (1M+ votes)."
 
-### Q8 — Who are the top 10 actors whose movies have the highest average rating with at least 100,000 total votes?
+### Q8 — Who are the top 10 directors whose movies have the highest average rating with at least 100,000 total votes?
+
+![Q8](Visualization/Q8.png)
+
+The director's analysis identifies **Vince Gilligan** as the most consistent high-performer in the dataset, boasting a 9.27 rating. By using our Series Corrected Votes measure, we can accurately compare veteran directors like Jack Bender (8.16 with 334k votes) against contemporary masters, providing a clear picture of directional excellence over the last 26 years.
 
 ### Q9 — What is the correlation between the total number of episodes in a series and its overall average rating?
+
+![Q9](Visualization/Q91.png)
+
+Our correlation analysis confirms a negative trend between series length and quality. While short series (0-200 episodes) exhibit high volatility in ratings, longer series tend to converge towards lower average scores. This suggests that sustained production over hundreds of episodes is often associated with a decline in perceived quality, with only a few outliers managing to maintain 'prestige' ratings in the long run.
 
 ### Q10 — At what point (season/episode number) do highly-rated series typically start to see a significant decline in user ratings? (Jum the Shark effect)
 
