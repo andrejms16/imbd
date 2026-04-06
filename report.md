@@ -480,15 +480,6 @@ Our Small Multiples analysis confirms that the correlation between quantity and 
 
 Analysis of high-engagement episodes (>50k votes) reveals a clear pattern: quality typically peaks at episode 10 and maintains a high plateau until episode 22. Beyond this point, we observe a significant 'Jump the Shark' effect, where the average rating drops by nearly 0.2 points in a short span. This suggests that for major TV productions, the transition into the late 20s in episode count represents a critical risk zone for audience retention and quality perception.
 
-### Q16 — Episode Count Impact
- 
-![Q16](Visualization/Q19.jpeg)
- 
-**Visual 1 — Avg Rating by Season Length:** Bar chart showing Short (6–10 ep) as the highest-rated group.
- 
-**Visual 2 — Avg Stddev by Season Length:** Bar chart showing Long (20+ ep) as the most inconsistent group, with stddev ~0.55 versus ~0.38 for Very Short seasons.
-
-
 --- 
 
 Q12 to Q15
@@ -519,11 +510,26 @@ This visualization reveals industry clusters. In the TV ecosystem, the strongest
 
 This visualization reinforces the mentioned important participation of voice actors and the power of animations world in TV series. They are not concentrated in Animation genre and many have genres defined as Action, Drama, Comedy, etc. making them highly representative in the participants analysis 
 
+### Q16 — Episode Count Impact
+ 
+![Q16](Visualization/Q19.jpeg)
+ 
+**Visual 1 — Avg Rating by Season Length:** Bar chart showing Short (6–10 ep) as the highest-rated group.
+ 
+**Visual 2 — Avg Stddev by Season Length:** Bar chart showing Long (20+ ep) as the most inconsistent group, with stddev ~0.55 versus ~0.38 for Very Short seasons.
+
 ---
 
 ## 7. Conclusion and Critical Reflection
-
-The implementation of this Data Warehouse demonstrates the clear advantage of OLAP systems for analytical workloads. By de-normalizing the IMDb data, we reduced query times for complex aggregations (like standard deviation of ratings across thousands of episodes) from minutes to seconds compared to the operational relational model.
-
-**Shortcomings:** The main challenge remains the ETL latency; as the IMDb dataset updates, the heavy transformation logic required for bridge tables and surrogate key mapping takes significant time.  
-**Advantages:** The resulting "Gold" layer is highly intuitive for end-users, shielding them from the complexity of the original 7+ table joins required in the operational database. This project successfully provides a scalable foundation for modern TV market intelligence.
+ 
+The implementation of this Data Warehouse demonstrates the clear advantage of OLAP systems for analytical workloads. By de-normalizing the IMDb data into a star schema architecture, we reduced query times for complex aggregations from minutes to seconds compared to an equivalent operational relational model — a direct consequence of the pre-aggregated seasonal grain in `fact_series_performance` and the conformed dimensions shared across all three stars.
+ 
+### Key Findings
+ 
+The five TV series market questions yielded consistent and analytically meaningful results. Quality fatigue is statistically confirmed: series lose an average of 0.6 rating points over 20 seasons, with Game of Thrones representing the most extreme case — a collapse of over 2.5 points between season 7 and season 8. Genre quality is stable but stratified: Musical and Western achieve the highest ratings but with low production volume, while Reality-TV is consistently the lowest-rated genre regardless of year. Medium-length series (4–6 seasons) represent the optimal format, balancing narrative depth with creative consistency. Audience engagement peaked around 2011–2012 and declined post-2013, reflecting fragmentation across streaming platforms rather than a decline in consumption. Finally, compact season formats (6–10 episodes) consistently outperform long seasons in both average rating and consistency — a pattern that validates the HBO and Netflix production model adopted industry-wide during the streaming era.
+ 
+The participant network analysis revealed equally compelling patterns. Voice actors dominate participation counts due to the multi-character nature of animation, which inflates both role counts and genre diversity. The strongest collaborative pairs are anchored in long-running productions, and genre specialisation is far more prevalent among live-action professionals than among animation crews.
+ 
+### Conclusion
+ 
+The project successfully demonstrates how a dimensional model built on a Big Data source transforms millions of raw records into actionable market intelligence — answering questions about the global TV industry that would be analytically intractable in the original operational database.
